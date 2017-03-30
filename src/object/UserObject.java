@@ -2,6 +2,7 @@ package object;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Random;
 import java.util.Set;
 
 public class UserObject {
@@ -61,6 +62,10 @@ public class UserObject {
 		this.id = id;
 		this.checkinMap = checkinMap;
 		this.factors = new double[k];
+		
+		Random generator = new Random();
+		for (int i = 0; i < k; i++)
+			this.factors[i] = generator.nextDouble() * 5.0 + 2.0;
 	}
 	
 	/**

@@ -1,6 +1,7 @@
 package object;
 
 import java.util.ArrayList;
+import java.util.Random;
 
 /**
  * 
@@ -16,7 +17,11 @@ public class VenueObject {
 		this.userIds = userIds;
 		this.totalCks = totalCks;
 		this.isSetArea = false;
+		
+		Random generator = new Random();
 		this.factors = new double[k];
+		for (int i = 0; i < k; i++)
+			this.factors[i] = 5.0 * generator.nextDouble() + 2.0;
 	}
 	
 	/**

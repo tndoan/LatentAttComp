@@ -39,7 +39,7 @@ public class Model {
 	 */
 	private HashMap<String, AreaObject> areaMap;
 
-	public Model(String uFile, String venueLocFile, String cksFile, double scope, boolean isSigmoid, int k, double scale, 
+	public Model(String uFile, String venueLocFile, String cksFile, boolean isSigmoid, int k, double scale, 
 			boolean isAverageLocation) {
 		this.isSigmoid = isSigmoid;
 		this.k = k;
@@ -77,7 +77,7 @@ public class Model {
 	}
 
 	/**
-	 * Learning latent factors of users and venues inside the model
+	 * Learning latent factors of users and venues inside the model via stochastic gradient descent
 	 */
 	public void learnParameters() {
 		boolean conv = false;
@@ -109,6 +109,11 @@ public class Model {
 		}
 	}
 	
+	/**
+	 * calculate the gradient of user
+	 * @param userId	id of user
+	 * @return			gradient vector of latent factor
+	 */
 	private double[] userGrad(String userId) {
 		double[] grad = new double[k];
 		UserObject uo = userMap.get(userId);
@@ -130,7 +135,7 @@ public class Model {
 			double w = uo.retrieveNumCks(vId);
 			double denominator = w / Function.innerProduct(uFactor, aFactor);
 			
-			grad = Function.plus(aFactor, Function.multiply(denominator, aFactor));
+			grad = Function.plus(grad, Function.multiply(denominator, aFactor));
 		}
 		
 		// 2nd part
@@ -167,6 +172,11 @@ public class Model {
 		return grad;
 	}
 	
+	/**
+	 * calculate gradient vector of latent feature of venue
+	 * @param venueId	id of venue
+	 * @return			gradient vector of latent factor of venue
+	 */
 	private double[] venueGrad(String venueId) {
 		double[] grad = new double[k];
 		VenueObject vo = venueMap.get(venueId);
@@ -251,11 +261,7 @@ public class Model {
 	 * 
 	 * @return	calculate the log likelihood of model
 	 */
-	private double calculateLLH() {
+	public double calculateLLH() {
 		return Loglikelihood.calculateLLH(userMap, venueMap, areaMap, isSigmoid, k);
-	}
-	
-	public static void main(String[] args) {
-		System.out.println("print ");
 	}
 }

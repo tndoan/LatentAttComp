@@ -10,6 +10,16 @@ import object.VenueObject;
 import utils.Function;
 
 public class Loglikelihood {
+	
+	/**
+	 * calculate the log likelihood of model
+	 * @param userMap
+	 * @param venueMap
+	 * @param areaMap
+	 * @param isSigmoid
+	 * @param k
+	 * @return
+	 */
 	public static double calculateLLH(HashMap<String, UserObject> userMap, HashMap<String, VenueObject> venueMap, 
 			HashMap<String, AreaObject> areaMap, boolean isSigmoid, int k){
 		double llh = 0.0;
