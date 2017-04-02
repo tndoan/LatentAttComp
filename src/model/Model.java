@@ -141,7 +141,7 @@ public class Model {
 		// 2nd part
 		for (String vId : lOfVenues) {
 			VenueObject vo = venueMap.get(vId);
-			ArrayList<String> neighbors = vo.getNeighbors();
+			Set<String> neighbors = vo.getNeighbors();
 			double lhs = Function.innerProduct(uFactor, vo.getFactors());
 			
 			double[] sub = new double[k];
@@ -205,7 +205,7 @@ public class Model {
 		
 		// 2nd part
 		ArrayList<String> uList = vo.getUserIds();
-		ArrayList<String> neighborIds = vo.getNeighbors();
+		Set<String> neighborIds = vo.getNeighbors();
 		
 		for (String uId : uList) {
 			UserObject uo = userMap.get(uId);
@@ -221,7 +221,7 @@ public class Model {
 				
 				if (isSigmoid)
 					p = Math.exp(-diff) * Function.sigmoidFunction(diff);
-				else 
+				else
 					p = Function.normal(diff) / Function.cdf(diff);
 				
 				sub = Function.plus(sub, Function.multiply(p, uFactor));
@@ -231,6 +231,7 @@ public class Model {
 			grad = Function.plus(sub, grad);
 		}
 		
+//		System.out.println("3rd part");
 		// 3rd part
 		for (String nId : neighborIds) {
 			VenueObject nObj = venueMap.get(nId);
@@ -253,7 +254,7 @@ public class Model {
 				grad = Function.plus(sub, grad);
 			}
 		}
-		
+
 		return grad;
 	}
 
@@ -263,5 +264,32 @@ public class Model {
 	 */
 	public double calculateLLH() {
 		return Loglikelihood.calculateLLH(userMap, venueMap, areaMap, isSigmoid, k);
+	}
+
+	public UserObject getUser(String uId) {
+		return userMap.get(uId);
+	}
+	
+	public VenueObject getVenue(String vId) {
+		return venueMap.get(vId);
+	}
+
+	public static void main(String[] args) {
+		Model m = new Model("data/uLoc.txt", "data/vLoc.txt", "data/cks.txt", false, 5, 0.05, true);
+//		UserObject o = m.getUser("2");
+		VenueObject o = m.getVenue("1");
+		
+		double eps = 0.001;
+		o.setFactors(new double[]{1.0, 2.0, 3.0, 4.0, 5.0 + eps});
+		double d1 = m.calculateLLH();
+		o.setFactors(new double[]{1.0, 2.0, 3.0, 4.0, 5.0 - eps});
+		double d2 = m.calculateLLH();
+		double d = (d1 - d2) / (2 * eps);
+		System.out.println("objective:" + d);
+		
+		o.setFactors(new double[]{1.0, 2.0, 3.0, 4.0, 5.0});
+//		double[] uG = m.userGrad("2");
+		double[] uG = m.venueGrad("1");
+		System.out.println(uG[4]);
 	}
 }

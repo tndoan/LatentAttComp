@@ -119,7 +119,7 @@ public class Utils {
 			HashMap<String, ArrayList<String>> userOfVenueMap, HashMap<String, AreaObject> areaMap, boolean isAverageLocation, 
 			double threshold, int k) {		
 		// create neighbors map
-		HashMap<String, ArrayList<String>> neighbors = new HashMap<>();
+		HashMap<String, Set<String>> neighbors = new HashMap<>();
 		
 		Set<String> allVenueIds = vInfo.keySet();
 		ArrayList<String> venueIdsList = new ArrayList<>();
@@ -136,16 +136,16 @@ public class Utils {
 				
 				if (dist < threshold) {
 					// if distance is less than threshold, these two points are neighbors.
-					ArrayList<String> l1 = neighbors.get(v1);
+					Set<String> l1 = neighbors.get(v1);
 					if (l1 == null) {
-						l1 = new ArrayList<>();
+						l1 = new HashSet<>();
 						neighbors.put(v1, l1);
 					}
 					l1.add(v2);
 					
-					ArrayList<String> l2 = neighbors.get(v2);
+					Set<String> l2 = neighbors.get(v2);
 					if(l2 == null) {
-						l2 = new ArrayList<>();
+						l2 = new HashSet<>();
 						neighbors.put(v2, l2);
 					}
 					l2.add(v1);
@@ -161,7 +161,7 @@ public class Utils {
 			String locInfo = vInfo.get(vId);
 			PointObject location = new PointObject(locInfo);
 			
-			ArrayList<String> neighborIds = neighbors.get(vId);
+			Set<String> neighborIds = neighbors.get(vId);
 			
 			int numCks = countMap.get(vId);
 			
@@ -219,7 +219,6 @@ public class Utils {
 			
 			// area id of venue. Each venue is belong to only 1 area.
 			String areaIds = String.valueOf(i * numLng  + j );
-//			System.out.println("venueId:" + vId + "\ti:" + i + "\tj:" + j + "\tareaId:" + areaIds);
 			
 			Set<String> listOfVenues = venuesInArea.get(areaIds);
 			if (listOfVenues == null) {
@@ -229,14 +228,13 @@ public class Utils {
 			listOfVenues.add(vId);
 		}
 		
-		
 		// neighbors of a venue in this case are not only venues in the same box (area) with this venue but also 
 		// venues in surrounding boxes of box of this venue. For example, neighbors of venue in box 5 also contain
 		// venue in boxes 1 to 9
 		// | 1 | 2 | 3 |
 		// | 4 | 5 | 6 |
 		// | 7 | 8 | 9 |
-		HashMap<String, ArrayList<String>> neighbors = new HashMap<>();
+		HashMap<String, Set<String>> neighbors = new HashMap<>();
 		HashMap<String, String> areaIdOfVenue = new HashMap<>();
 		for (int i = 0; i < numLat; i++ ) {
 			for (int j = 0; j < numLng; j++) {
@@ -248,7 +246,7 @@ public class Utils {
 						// assign area id to venue
 						areaIdOfVenue.put(vId, areaId);
 						
-						ArrayList<String> subneighbors = new ArrayList<>(setOfVenues);
+						Set<String> subneighbors = new HashSet<>(setOfVenues);
 						subneighbors.remove(vId);
 						neighbors.put(vId, subneighbors);
 						
@@ -270,7 +268,7 @@ public class Utils {
 		for (String venueId: vInfo.keySet()){
 			PointObject location = vInfo.get(venueId);
 			
-			ArrayList<String> neighborIds = neighbors.get(venueId);
+			Set<String> neighborIds = neighbors.get(venueId);
 
 			Integer numCks = countMap.get(venueId);
 			if (numCks == null)
@@ -332,28 +330,28 @@ public class Utils {
 		ArrayList<String> result = new ArrayList<>();
 		
 		if ( i - 1 >= 0)
-			result.add(String.valueOf((i - 1) * numLat + j));
+			result.add(String.valueOf((i - 1) * numLng + j));
 		
 		if (j - 1 >= 0)
-			result.add(String.valueOf(i * numLat + j - 1));
+			result.add(String.valueOf(i * numLng + j - 1));
 		
 		if (i + 1 < numLat) 
-			result.add(String.valueOf((i + 1) * numLat + j));
+			result.add(String.valueOf((i + 1) * numLng + j));
 		
 		if (j + 1 < numLng)
-			result.add(String.valueOf(i * numLat + j + 1));
+			result.add(String.valueOf(i * numLng + j + 1));
 		
 		if (i - 1 >= 0 && j + 1 < numLng)
-			result.add(String.valueOf((i - 1) * numLat + j + 1));
+			result.add(String.valueOf((i - 1) * numLng + j + 1));
 		
-		if (i - 1 > 0 && j - 1 >= 0)
-			result.add(String.valueOf((i - 1) * numLat + j - 1));
+		if (i - 1 >= 0 && j - 1 >= 0)
+			result.add(String.valueOf((i - 1) * numLng + j - 1));
 		
 		if (i + 1 < numLat && j - 1 >= 0)
-			result.add(String.valueOf((i + 1) * numLat + j - 1));
+			result.add(String.valueOf((i + 1) * numLng + j - 1));
 		
 		if (i + 1 < numLat && j + 1 < numLng)
-			result.add(String.valueOf((i + 1) * numLat + j + 1));
+			result.add(String.valueOf((i + 1) * numLng + j + 1));
 		
 		return result;
 	}

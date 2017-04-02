@@ -1,6 +1,5 @@
 package model;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Set;
 
@@ -24,6 +23,7 @@ public class Loglikelihood {
 			HashMap<String, AreaObject> areaMap, boolean isSigmoid, int k){
 		double llh = 0.0;
 		
+		
 		// user chooses area
 		for (String userId : userMap.keySet()) {
 			UserObject uo = userMap.get(userId);
@@ -37,20 +37,16 @@ public class Loglikelihood {
 				AreaObject ao = areaMap.get(areaId);
 				Set<String> lOfVIds = ao.getSetOfVenueIds();
 				double[] aFactors = new double[k];
-				
-				aFactors = Function.plus(aFactors, vo.getFactors());
-				
-				for (String vId : lOfVIds) {
-					if (vId.equals(venueId))
-						continue;
 
+				for (String vId : lOfVIds) {
 					VenueObject vOfAreaId = venueMap.get(vId);
 					aFactors = Function.plus(aFactors, vOfAreaId.getFactors());
 				}
+
 				llh += w * Math.log(Function.innerProduct(uFactor, aFactors));
 			}
 		}
-		
+
 		// venue win over their neighbors
 		for (String userId : userMap.keySet()) {
 			UserObject uo = userMap.get(userId);
@@ -61,7 +57,7 @@ public class Loglikelihood {
 				VenueObject vo = venueMap.get(vId);
 				double w = uo.retrieveNumCks(vId);
 				
-				ArrayList<String> neighbors = vo.getNeighbors();
+				Set<String> neighbors = vo.getNeighbors();
 				double lhs = Function.innerProduct(uFactor, vo.getFactors());
 				
 				double subLLH = 0.0;

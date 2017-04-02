@@ -2,6 +2,7 @@ package object;
 
 import java.util.ArrayList;
 import java.util.Random;
+import java.util.Set;
 
 /**
  * 
@@ -10,7 +11,7 @@ import java.util.Random;
  */
 public class VenueObject {
 	
-	public VenueObject(String id, int totalCks,	PointObject location, ArrayList<String> neighbors, ArrayList<String> userIds, int k){
+	public VenueObject(String id, int totalCks,	PointObject location, Set<String> neighbors, ArrayList<String> userIds, int k){
 		this.id = id;
 		this.location = location;
 		this.neighbors = neighbors;
@@ -21,7 +22,7 @@ public class VenueObject {
 		Random generator = new Random();
 		this.factors = new double[k];
 		for (int i = 0; i < k; i++)
-			this.factors[i] = 5.0 * generator.nextDouble() + 2.0;
+			this.factors[i] = generator.nextDouble() + 1.0;
 	}
 	
 	/**
@@ -62,7 +63,7 @@ public class VenueObject {
 	/**
 	 * list of id of neighbors
 	 */
-	private ArrayList<String> neighbors;
+	private Set<String> neighbors;
 	
 	/**
 	 * list of user ids who have check-in in this venue
@@ -77,7 +78,7 @@ public class VenueObject {
 		return id;
 	}
 
-	public ArrayList<String> getNeighbors() {
+	public Set<String> getNeighbors() {
 		return neighbors;
 	}
 

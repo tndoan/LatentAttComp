@@ -24,7 +24,7 @@ public class MakeAreaMap {
 		
 		for (String venueId : vMap.keySet()) {
 			VenueObject vo = vMap.get(venueId);
-			ArrayList<String> venueIds = vo.getNeighbors();
+			Set<String> venueIds = vo.getNeighbors();
 			
 			double lat = vo.getLocation().getLat();
 			double lng = vo.getLocation().getLng();

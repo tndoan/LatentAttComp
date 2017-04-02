@@ -65,7 +65,7 @@ public class UserObject {
 		
 		Random generator = new Random();
 		for (int i = 0; i < k; i++)
-			this.factors[i] = generator.nextDouble() * 5.0 + 2.0;
+			this.factors[i] = generator.nextDouble();
 	}
 	
 	/**
