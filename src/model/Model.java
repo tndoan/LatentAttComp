@@ -1,7 +1,9 @@
 package model;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 import object.AreaObject;
@@ -80,28 +82,51 @@ public class Model {
 	 * Learning latent factors of users and venues inside the model via stochastic gradient descent
 	 */
 	public void learnParameters() {
+		Set<String> allUIds = userMap.keySet();
+		Set<String> allVIds = venueMap.keySet();
 		boolean conv = false;
+		long sTime = System.currentTimeMillis();
 		double prevLLH = calculateLLH();
-		double learningRate = 0.01;
+		double learningRate = -0.000001;
 
+		System.out.println(prevLLH + " in " + (System.currentTimeMillis() - sTime)/1000 + " s");
 		while(!conv) {
-			// update factor of users
-			for (String uId : userMap.keySet()) {
-				UserObject uo = userMap.get(uId);
+
+			sTime = System.currentTimeMillis();
+			Map<String, double[]> uGradMap = Collections.synchronizedMap(new HashMap<>());
+			// calculate gradient of users
+			allUIds.parallelStream().forEach(uId -> {
 				double[] uGrad = userGrad(uId);
-				double[] newUGrad = Function.minus(uGrad, Function.multiply(learningRate, uGrad));
+				uGradMap.put(uId, uGrad);
+			});
+
+			// update factor of users
+			allUIds.parallelStream().forEach(uId -> {
+				UserObject uo = userMap.get(uId);
+				double[] uGrad = uGradMap.get(uId);
+				double[] newUGrad = Function.minus(uo.getFactors(), Function.multiply(learningRate, uGrad));
 				uo.setFactors(newUGrad);
-			}
-			
-			// update factor of venues
-			for (String vId : venueMap.keySet()) {
-				VenueObject vo = venueMap.get(vId);
+			});
+			System.out.println("sub uLLH:" + calculateLLH() + " in " + (System.currentTimeMillis() - sTime)/1000 + "s");
+
+			sTime = System.currentTimeMillis();
+			// calculate gradient of venues
+			Map<String, double[]> vGradMap = Collections.synchronizedMap(new HashMap<>());
+			allVIds.parallelStream().forEach(vId ->{
 				double[] vGrad = venueGrad(vId);
-				double[] newVGrad = Function.minus(vGrad, Function.multiply(learningRate, vGrad));
+				vGradMap.put(vId, vGrad);
+			});
+
+			// update factor of venues
+			allVIds.parallelStream().forEach(vId -> {
+				VenueObject vo = venueMap.get(vId);
+				double[] vGrad = vGradMap.get(vId);
+				double[] newVGrad = Function.minus(vo.getFactors(), Function.multiply(learningRate, vGrad));
 				vo.setFactors(newVGrad);
-			}
+			});
 			
 			double llh = calculateLLH();
+			System.out.println(llh + " in " + (System.currentTimeMillis() - sTime)/1000 + " s");
 			if (Math.abs(llh - prevLLH) < 0.001)
 				conv = true;
 			else
@@ -150,15 +175,16 @@ public class Model {
 				double rhs = Function.innerProduct(uFactor, neighborObj.getFactors());
 				double diff = lhs - rhs;
 				double p = 1.0;
-				double[] subVector = new double[k];
+				double[] subVector;
 				
 				if (isSigmoid) {
 					p = - Function.sigmoidFunction(diff) * Math.exp(- diff);
 					subVector = Function.minus(neighborObj.getFactors(), vo.getFactors());
 					subVector = Function.multiply(p, subVector);
 				} else {
-					p = 1.0/ Function.cdf(diff);
-					p *= Function.normal(diff);
+					p = 1.0/ Function.tanh1_2(diff);
+					double d = 1.0 + Math.exp(-2.0 * diff);
+					p *= 2.0 * Math.exp(-2.0 * diff) / (d * d);
 					subVector = Function.minus(vo.getFactors(), neighborObj.getFactors());
 					subVector = Function.multiply(p, subVector);
 				}
@@ -221,8 +247,10 @@ public class Model {
 				
 				if (isSigmoid)
 					p = Math.exp(-diff) * Function.sigmoidFunction(diff);
-				else
-					p = Function.normal(diff) / Function.cdf(diff);
+				else {
+					double e = Math.exp(-2.0 * diff);
+					p = 2.0 * e / (Function.tanh1_2(diff) * (e + 1.0) * (1.0 + e));
+				}
 				
 				sub = Function.plus(sub, Function.multiply(p, uFactor));
 			}
@@ -247,8 +275,10 @@ public class Model {
 				
 				if (isSigmoid)
 					p = - Function.sigmoidFunction(diff) * Math.exp(-diff);
-				else
-					p = - Function.normal(diff) / Function.cdf(diff);
+				else {
+					double e = Math.exp(-2.0 * diff);
+					p = - 2.0 * e / ((1.0 + e) * (1.0 + e) * Function.tanh1_2(diff));
+				}
 				
 				double[] sub = Function.multiply(p * uo.retrieveNumCks(nId), uFactor);
 				grad = Function.plus(sub, grad);
@@ -264,32 +294,5 @@ public class Model {
 	 */
 	public double calculateLLH() {
 		return Loglikelihood.calculateLLH(userMap, venueMap, areaMap, isSigmoid, k);
-	}
-
-	public UserObject getUser(String uId) {
-		return userMap.get(uId);
-	}
-	
-	public VenueObject getVenue(String vId) {
-		return venueMap.get(vId);
-	}
-
-	public static void main(String[] args) {
-		Model m = new Model("data/uLoc.txt", "data/vLoc.txt", "data/cks.txt", false, 5, 0.05, true);
-//		UserObject o = m.getUser("2");
-		VenueObject o = m.getVenue("1");
-		
-		double eps = 0.001;
-		o.setFactors(new double[]{1.0, 2.0, 3.0, 4.0, 5.0 + eps});
-		double d1 = m.calculateLLH();
-		o.setFactors(new double[]{1.0, 2.0, 3.0, 4.0, 5.0 - eps});
-		double d2 = m.calculateLLH();
-		double d = (d1 - d2) / (2 * eps);
-		System.out.println("objective:" + d);
-		
-		o.setFactors(new double[]{1.0, 2.0, 3.0, 4.0, 5.0});
-//		double[] uG = m.userGrad("2");
-		double[] uG = m.venueGrad("1");
-		System.out.println(uG[4]);
 	}
 }

@@ -1,16 +1,11 @@
 package utils;
 
-import org.apache.commons.math3.distribution.NormalDistribution;
-
 /**
  * 
  * @author tndoan
  *
  */
 public class Function {
-
-	private static NormalDistribution standardGau = new NormalDistribution();
-
 	/**
 	 * calculate the sigmoid function of x
 	 * 
@@ -81,29 +76,6 @@ public class Function {
 		double s = sigmoidFunction(x);
 		return (1.0 - s);
 	}
-
-	/**
-	 * taking differentiation of log cdf of standard Gaussian distribution
-	 * Should be careful if the parameter is -x
-	 * 
-	 * @param x
-	 *            value
-	 * @return differentitaion
-	 */
-	public static double diffLogCDF(double x) {
-		return standardGau.density(x) / standardGau.cumulativeProbability(x);
-	}
-
-	/**
-	 * return cumulative density function for a specific value
-	 * 
-	 * @param x
-	 *            data point that we want to compute
-	 * @return
-	 */
-	public static double cdf(double x) {
-		return standardGau.cumulativeProbability(x);
-	}
 	
 	/**
 	 * calculate the inner product of two vectors
@@ -131,13 +103,13 @@ public class Function {
 	public static double sqrNorm(double[] u) {
 		return innerProduct(u, u);
 	}
-	
+
 	/**
-	 * 
+	 * calculate the value of (tanh(x) + 1) / 2
 	 * @param x
-	 * @return
+	 * @return		value of function
 	 */
-	public static double normal(double x) {
-		return standardGau.density(x);
+	public static double tanh1_2(double x) {
+		return 1.0 / (1.0 + Math.exp(-2.0 * x));
 	}
 }
