@@ -127,7 +127,7 @@ public class Model {
 			
 			double llh = calculateLLH();
 			System.out.println(llh + " in " + (System.currentTimeMillis() - sTime)/1000 + " s");
-			if (Math.abs(llh - prevLLH) < 0.001)
+			if (Math.abs((llh - prevLLH) / prevLLH) < 0.01)
 				conv = true;
 			else
 				prevLLH = llh;
