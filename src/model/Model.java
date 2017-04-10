@@ -1,10 +1,7 @@
 package model;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.io.IOException;
+import java.util.*;
 
 import object.AreaObject;
 import object.PointObject;
@@ -294,5 +291,37 @@ public class Model {
 	 */
 	public double calculateLLH() {
 		return Loglikelihood.calculateLLH(userMap, venueMap, areaMap, isSigmoid, k);
+	}
+
+	public void writeModel(String prefix) throws IOException {
+		ArrayList<String> aString = new ArrayList<>();
+		for (AreaObject ao : areaMap.values()) {
+			String id = ao.getId();
+			PointObject loc = ao.getLocation();
+			String lat = String.valueOf(loc.getLat());
+			String lng = String.valueOf(loc.getLng());
+//			sb.append("\"" + id + "\" : { \"scope\":" + scope +  ",\"lat\":" + lat + ", \"lng\" :" + lng + "}");
+			aString.add(id + "," + lat + "," + lng);
+		}
+		Utils.writeFile(aString, prefix + "_area");
+
+		// save venue scope, neighbors and area which it belong to
+		ArrayList<String> vString = new ArrayList<>();
+		for (VenueObject vo : venueMap.values()) {
+			String id = vo.getId();
+			Set<String> neighbors = vo.getNeighbors();
+			String aId = vo.getAreaId();
+			double[] latentFeature = vo.getFactors();
+			vString.add(id + "," + aId + "," + Arrays.toString(latentFeature));
+			StringBuffer sb = new StringBuffer();
+			boolean isB = true;
+			for (String neighbor : neighbors) {
+				if(isB) isB = false;
+				else sb.append(",");
+				sb.append(neighbor);
+			}
+			vString.add(sb.toString());
+		}
+		Utils.writeFile(vString, prefix + "_venue");
 	}
 }
