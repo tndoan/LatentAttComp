@@ -1,6 +1,5 @@
 package model;
 
-import java.awt.geom.Area;
 import java.io.IOException;
 import java.util.*;
 
@@ -88,7 +87,7 @@ public class Model {
 		Set<String> allVIds = venueMap.keySet();
 		boolean conv = false;
 		long sTime = System.currentTimeMillis();
-		double prevLLH = calculateLLH();
+		double prevLLH = calculateParallelLLH();
 		double learningRate = -0.000001;
 
 		System.out.println(prevLLH + " in " + (System.currentTimeMillis() - sTime)/1000 + " s");
@@ -127,7 +126,7 @@ public class Model {
 				vo.setFactors(newVGrad);
 			});
 
-			double llh = calculateLLH();
+			double llh = calculateParallelLLH();
 			System.out.println(llh + " in " + (System.currentTimeMillis() - sTime)/1000 + " s");
 			if (Math.abs((llh - prevLLH) / prevLLH) < 0.01)
 				conv = true;
@@ -144,7 +143,7 @@ public class Model {
 		ArrayList<String> allUIds = new ArrayList<>(userMap.keySet());
 		boolean conv = false;
 		long sTime = System.currentTimeMillis();
-		double prevLLH = calculateLLH();
+		double prevLLH = calculateParallelLLH();
 		double learningRate = -0.000001;
 
 		System.out.println(prevLLH + " in " + (System.currentTimeMillis() - sTime)/1000 + " s");
@@ -163,7 +162,7 @@ public class Model {
 				}
 			}
 
-			double llh = calculateLLH();
+			double llh = calculateParallelLLH();
 			System.out.println(llh + " in " + (System.currentTimeMillis() - sTime)/1000 + " s");
 			if (Math.abs((llh - prevLLH) / prevLLH) < 0.01)
 				conv = true;
@@ -332,6 +331,14 @@ public class Model {
 	 */
 	public double calculateLLH() {
 		return Loglikelihood.calculateLLH(userMap, venueMap, areaMap, isSigmoid, k);
+	}
+
+	/**
+	 * calculate log likelihood with highly parallel
+	 * @return	log likelihood
+	 */
+	public double calculateParallelLLH() {
+		return Loglikelihood.calculateParallelLLH(userMap, venueMap, areaMap, isSigmoid, k);
 	}
 
 	private double[] userGrad(String uId, String vId) {
