@@ -25,26 +25,11 @@ public class MakeAreaMap {
 		for (String venueId : vMap.keySet()) {
 			VenueObject vo = vMap.get(venueId);
 			Set<String> venueIds = vo.getNeighbors();
-			
-			double lat = vo.getLocation().getLat();
-			double lng = vo.getLocation().getLng();
-			
-			if (isAverageLocation) {
-				for (String vId : venueIds){
-					VenueObject v = vMap.get(vId);
-					lat += v.getLocation().getLat();
-					lng += v.getLocation().getLng();
-				}
 
-				lat /= (double) (venueIds.size() + 1);
-				lng /= (double) (venueIds.size() + 1);
-			}
-
-			PointObject p = new PointObject(lat, lng);
 			Set<String> venueInArea = new HashSet<>(vo.getNeighbors());
 			venueInArea.add(venueId);
 			
-			AreaObject a = new AreaObject(venueId, p, venueInArea);
+			AreaObject a = new AreaObject(venueId, venueInArea);
 			result.put(venueId, a);
 		}
 		
@@ -93,10 +78,7 @@ public class MakeAreaMap {
 		for (int i = 0; i < numLat - 1; i++) {
 			for (int j = 0; j < numLng - 1; j++) {
 				String areaId = String.valueOf(i * j);
-				PointObject sub_ne = new PointObject(base_min_lat + (scale * (double)(i + 1)), base_min_lng + (scale * (double) (j + 1)));
-				PointObject sub_sw = new PointObject(base_min_lat + (scale * (double)(i)), base_min_lng + (scale * (double) (j)));
-				RectangleObject rObj = new RectangleObject(sub_ne, sub_sw);
-				AreaObject area = new AreaObject(areaId, rObj.getCenter(), venuesInArea.get(areaId));
+				AreaObject area = new AreaObject(areaId, venuesInArea.get(areaId));
 				result.put(areaId, area);
 			}
 		}

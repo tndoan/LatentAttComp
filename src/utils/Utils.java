@@ -184,19 +184,17 @@ public class Utils {
 	 * @param countMap
 	 * @param userOfVenueMap
 	 * @param scale				size of the cell in degree
-	 * @param isAverageLoc		true -> location of area is the average locations of all venues in this area; false -> center of the square
+	 * @param k
 	 * @return
 	 */
 	public static HashMap<String, VenueObject> createNeighborsBox(HashMap<String, PointObject> vInfo, HashMap<String, AreaObject> areaMap, 
-			HashMap<String, Integer> countMap, HashMap<String, ArrayList<String>> userOfVenueMap, double scale, 
-			boolean isAverageLoc, int k) {
+			HashMap<String, Integer> countMap, HashMap<String, ArrayList<String>> userOfVenueMap, double scale, int k) {
 		Collection<PointObject> locInfo = vInfo.values();
 		
 		// find venues inside area
 		RectangleObject coverRectangle = MakeAreaMap.surroundingGrid1(locInfo);
 		System.out.println("cover rectangle:" + coverRectangle.toString());
-//		double scale = 0.1; // the size of each square is 0.1 x 0.1 (latitude and longitude)
-		
+
 		PointObject ne = coverRectangle.getNortheast();
 		PointObject sw = coverRectangle.getSouthwest();
 		
@@ -293,32 +291,8 @@ public class Utils {
 				Set<String> allVenueIds = venuesInArea.get(areaId);
 				if (allVenueIds == null) // if there is no venue in this area, ignore
 					continue;
-				
-				double average_lat = 0.0;
-				double average_lng = 0.0;
-				
-				for (String vId : allVenueIds) {
-					VenueObject v = venueMap.get(vId);
-					
-					average_lat += v.getLocation().getLat();
-					average_lng += v.getLocation().getLng();
-				}
 
-				average_lat /= (double) allVenueIds.size();
-				average_lng /= (double) allVenueIds.size();
-				
-				// location of area
-				PointObject aLoc = null;
-				if (isAverageLoc) {
-					aLoc = new PointObject(average_lat, average_lng);
-				} else {
-					PointObject sub_ne = new PointObject(base_min_lat + (scale * (double)(i + 1)), base_min_lng + (scale * (double) (j + 1)));
-					PointObject sub_sw = new PointObject(base_min_lat + (scale * (double)(i)), base_min_lng + (scale * (double) (j)));
-					RectangleObject rObj = new RectangleObject(sub_ne, sub_sw);
-					aLoc = rObj.getCenter();
-				}
-
-				AreaObject area = new AreaObject(areaId, aLoc, allVenueIds);
+				AreaObject area = new AreaObject(areaId, allVenueIds);
 				areaMap.put(areaId, area);
 			}
 		}

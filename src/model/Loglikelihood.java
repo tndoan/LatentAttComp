@@ -84,4 +84,47 @@ public class Loglikelihood {
 		
 		return llh;
 	}
+
+	/**
+	 * calculate log-likelihood for specific pair of user and venue
+	 * @param uId			user id in user-venue pair
+	 * @param vId			venue id in user-venue pair
+	 * @param userMap		map of user-id, user-object
+	 * @param venueMap		map of venue id, venue object
+	 * @param areaMap		map of area id, area object
+	 * @param isSigmoid		sigmoid or tanh
+	 * @param k				number of latent features
+	 * @return				log likelihood of uId and vId
+	 */
+	public static double calculateLLH(String uId, String vId, HashMap<String, UserObject> userMap,
+									  HashMap<String, VenueObject> venueMap, HashMap<String, AreaObject> areaMap,
+									  boolean isSigmoid, int k) {
+
+		UserObject uo = userMap.get(uId);
+		VenueObject vo = venueMap.get(vId);
+		double[] uFactor = uo.getFactors();
+		String aId = vo.getAreaId();
+		Set<String> setOfVenueIds = areaMap.get(aId).getSetOfVenueIds();
+
+		double[] featuresOfArea = new double[k];
+		for (String v : setOfVenueIds) {
+			double[] latentFeatures = venueMap.get(v).getFactors();
+			featuresOfArea = Function.plus(latentFeatures, featuresOfArea);
+		}
+		double result = Math.log(Function.innerProduct(featuresOfArea, uFactor));
+
+		Set<String> allNeighborIds = vo.getNeighbors();
+		double lhs = Function.innerProduct(uFactor, vo.getFactors());
+		for (String n : allNeighborIds) {
+			double[] nFactors = venueMap.get(n).getFactors();
+			double rhs = Function.innerProduct(uFactor, nFactors);
+			if (isSigmoid)
+				result += Math.log(Function.sigmoidFunction(lhs - rhs));
+			else
+				result += Math.log(Function.tanh1_2(lhs - rhs));
+		}
+
+		double numCks = uo.retrieveNumCks(vId);
+		return result * numCks;
+	}
 }
