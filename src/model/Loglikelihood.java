@@ -22,7 +22,7 @@ public class Loglikelihood {
 	 * @return				log likelihood of model
 	 */
 	public static double calculateLLH(HashMap<String, UserObject> userMap, HashMap<String, VenueObject> venueMap, 
-			HashMap<String, AreaObject> areaMap, boolean isSigmoid, int k){
+			HashMap<String, AreaObject> areaMap, boolean isSigmoid, int k, Parameters params){
 		double llh = 0.0;
 		
 		HashMap<String, double[]> areaFactorCache = new HashMap<>();
@@ -83,6 +83,12 @@ public class Loglikelihood {
 				llh += w * subLLH;
 			}
 		}
+
+		// regularization
+		for (UserObject uo : userMap.values())
+			llh -= params.getLambda_u() * Function.sqrNorm(uo.getFactors());
+		for (VenueObject vo : venueMap.values())
+			llh -= params.getLambda_v() * Function.sqrNorm(vo.getFactors());
 		
 		return llh;
 	}
@@ -97,7 +103,7 @@ public class Loglikelihood {
 	 * @return				log likelihood
 	 */
 	public static double calculateParallelLLH(HashMap<String, UserObject> userMap, HashMap<String, VenueObject> venueMap,
-									  HashMap<String, AreaObject> areaMap, boolean isSigmoid, int k){
+									  HashMap<String, AreaObject> areaMap, boolean isSigmoid, int k, Parameters params){
 		Map<String, double[]> areaFactorCache = Collections.synchronizedMap(new HashMap<>());
 
 		// user chooses area
@@ -162,6 +168,14 @@ public class Loglikelihood {
 			return l;
 		}).sum();
 
+		// regularization
+		llh -= userMap.values().parallelStream()
+				.mapToDouble(uo -> params.getLambda_u() * Function.sqrNorm(uo.getFactors()))
+				.sum();
+		llh -= venueMap.values().parallelStream()
+				.mapToDouble(vo -> params.getLambda_v() * Function.sqrNorm(vo.getFactors()))
+				.sum();
+
 		return llh;
 	}
 
@@ -178,11 +192,12 @@ public class Loglikelihood {
 	 */
 	public static double calculateLLH(String uId, String vId, HashMap<String, UserObject> userMap,
 									  HashMap<String, VenueObject> venueMap, HashMap<String, AreaObject> areaMap,
-									  boolean isSigmoid, int k) {
+									  boolean isSigmoid, int k, Parameters params) {
 
 		UserObject uo = userMap.get(uId);
 		VenueObject vo = venueMap.get(vId);
 		double[] uFactor = uo.getFactors();
+		double[] vFactor = vo.getFactors();
 		String aId = vo.getAreaId();
 		Set<String> setOfVenueIds = areaMap.get(aId).getSetOfVenueIds();
 
@@ -194,7 +209,7 @@ public class Loglikelihood {
 		double result = Math.log(Function.innerProduct(featuresOfArea, uFactor));
 
 		Set<String> allNeighborIds = vo.getNeighbors();
-		double lhs = Function.innerProduct(uFactor, vo.getFactors());
+		double lhs = Function.innerProduct(uFactor, vFactor);
 		for (String n : allNeighborIds) {
 			double[] nFactors = venueMap.get(n).getFactors();
 			double rhs = Function.innerProduct(uFactor, nFactors);
@@ -205,6 +220,9 @@ public class Loglikelihood {
 		}
 
 		double numCks = uo.retrieveNumCks(vId);
-		return result * numCks;
+
+		// calculate regularization
+		double r = params.getLambda_u() * Function.sqrNorm(uFactor) + params.getLambda_v() * Function.sqrNorm(vFactor);
+		return result * numCks - r; // minus since we want to minimize r
 	}
 }

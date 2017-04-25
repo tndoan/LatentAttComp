@@ -30,6 +30,11 @@ public class Model {
 	 * key is user id, value is user object corresponding to user id
 	 */
 	private HashMap<String, UserObject> userMap;
+
+	/**
+	 * store regularizer values
+	 */
+	private Parameters params;
 	
 	private int k;
 	
@@ -39,6 +44,13 @@ public class Model {
 	private HashMap<String, AreaObject> areaMap;
 
 	public Model(String uFile, String venueLocFile, String cksFile, boolean isSigmoid, int k, double scale) {
+		this(uFile, venueLocFile, cksFile, isSigmoid, k, scale,
+				new Parameters(0.01, 0.01, 0.01));
+	}
+
+	public Model(String uFile, String venueLocFile, String cksFile, boolean isSigmoid, int k, double scale,
+				 Parameters params) {
+		this.params = params;
 		this.isSigmoid = isSigmoid;
 		this.k = k;
 		
@@ -232,6 +244,9 @@ public class Model {
 			grad = Function.plus(sub, grad);
 		}
 
+		// regularization
+		grad = Function.plus(grad, Function.multiply(-2.0 * params.getLambda_u(), uFactor));
+
 		return grad;
 	}
 	
@@ -296,7 +311,6 @@ public class Model {
 			grad = Function.plus(sub, grad);
 		}
 		
-//		System.out.println("3rd part");
 		// 3rd part
 		for (String nId : neighborIds) {
 			VenueObject nObj = venueMap.get(nId);
@@ -322,6 +336,9 @@ public class Model {
 			}
 		}
 
+		// regularization
+		grad = Function.plus(grad, Function.multiply(-2.0 * params.getLambda_v(), vFactor));
+
 		return grad;
 	}
 
@@ -330,7 +347,7 @@ public class Model {
 	 * @return	calculate the log likelihood of model
 	 */
 	public double calculateLLH() {
-		return Loglikelihood.calculateLLH(userMap, venueMap, areaMap, isSigmoid, k);
+		return Loglikelihood.calculateLLH(userMap, venueMap, areaMap, isSigmoid, k, params);
 	}
 
 	/**
@@ -338,7 +355,7 @@ public class Model {
 	 * @return	log likelihood
 	 */
 	public double calculateParallelLLH() {
-		return Loglikelihood.calculateParallelLLH(userMap, venueMap, areaMap, isSigmoid, k);
+		return Loglikelihood.calculateParallelLLH(userMap, venueMap, areaMap, isSigmoid, k, params);
 	}
 
 	private double[] userGrad(String uId, String vId) {
@@ -374,7 +391,9 @@ public class Model {
 		}
 		result = Function.plus(l2, result);
 
-		return Function.multiply(u.retrieveNumCks(vId), result);
+		double[] r = Function.multiply(-2.0 * params.getLambda_u(), uFactor);
+
+		return Function.plus(Function.multiply(u.retrieveNumCks(vId), result), r);
 	}
 
 	private double[] venueGrad(String uId, String vId) {
@@ -413,11 +432,14 @@ public class Model {
 		}
 		result = Function.plus(result, Function.multiply(total, uFactor));
 
-		return Function.multiply(uObj.retrieveNumCks(vId), result);
+		// regularization
+		double[] r = Function.multiply(-2.0 * params.getLambda_v(), vFactor);
+
+		return Function.plus(Function.multiply(uObj.retrieveNumCks(vId), result), r);
 	}
 
 	public double calculateLLH(String uId, String vId) {
-		return Loglikelihood.calculateLLH(uId, vId, userMap, venueMap, areaMap, isSigmoid, k);
+		return Loglikelihood.calculateLLH(uId, vId, userMap, venueMap, areaMap, isSigmoid, k, params);
 	}
 
 	public void writeModel(String prefix) throws IOException {
