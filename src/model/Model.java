@@ -24,6 +24,11 @@ public class Model {
 	 * key is venue id, value is venue object corresponding to the venue id
 	 */
 	private HashMap<String, VenueObject> venueMap;
+
+	/**
+	 *
+	 */
+	private boolean isFriend;
 	
 	
 	/**
@@ -43,13 +48,14 @@ public class Model {
 	 */
 	private HashMap<String, AreaObject> areaMap;
 
-	public Model(String uFile, String venueLocFile, String cksFile, boolean isSigmoid, int k, double scale) {
-		this(uFile, venueLocFile, cksFile, isSigmoid, k, scale,
+	public Model(String uFile, String venueLocFile, String cksFile, boolean isSigmoid, int k, double scale, boolean isFriend) {
+		this(uFile, venueLocFile, cksFile, isSigmoid, k, scale, isFriend,
 				new Parameters(0.01, 0.01, 0.01));
 	}
 
 	public Model(String uFile, String venueLocFile, String cksFile, boolean isSigmoid, int k, double scale,
-				 Parameters params) {
+				 boolean isFriend, Parameters params) {
+		this.isFriend = isFriend;
 		this.params = params;
 		this.isSigmoid = isSigmoid;
 		this.k = k;
@@ -223,7 +229,7 @@ public class Model {
 				VenueObject neighborObj = venueMap.get(nId);
 				double rhs = Function.innerProduct(uFactor, neighborObj.getFactors());
 				double diff = lhs - rhs;
-				double p = 1.0;
+				double p;
 				double[] subVector;
 				
 				if (isSigmoid) {
@@ -295,7 +301,7 @@ public class Model {
 				VenueObject nObj = venueMap.get(nId);
 				double rhs = Function.innerProduct(uFactor, nObj.getFactors());
 				double diff = lhs - rhs;
-				double p = 1.0;
+				double p;
 				
 				if (isSigmoid)
 					p = Math.exp(-diff) * Function.sigmoidFunction(diff);
@@ -322,7 +328,7 @@ public class Model {
 				double lhs = Function.innerProduct(uFactor, nObj.getFactors());
 				double rhs = Function.innerProduct(uFactor, vFactor);
 				double diff = lhs - rhs;
-				double p = 1.0;
+				double p;
 				
 				if (isSigmoid)
 					p = - Function.sigmoidFunction(diff) * Math.exp(-diff);
@@ -381,7 +387,7 @@ public class Model {
 			double rhs = Function.innerProduct(nObj.getFactors(), uFactor);
 			double diff = lhs - rhs;
 			double[] diffVector = Function.minus(nObj.getFactors(), vFactor);
-			double inFront = 0.0;
+			double inFront;
 			if (isSigmoid)
 				inFront = -Function.sigmoidFunction(diff) * Math.exp(-diff);
 			else
@@ -443,24 +449,33 @@ public class Model {
 	}
 
 	public void writeModel(String prefix) throws IOException {
-		// save venue scope, neighbors and area which it belong to
-		ArrayList<String> vString = new ArrayList<>();
-		for (VenueObject vo : venueMap.values()) {
-			String id = vo.getId();
-			Set<String> neighbors = vo.getNeighbors();
-			String aId = vo.getAreaId();
-			double[] latentFeature = vo.getFactors();
-			vString.add(id + "," + aId + "," + Arrays.toString(latentFeature));
+
+		ArrayList<String> result = new ArrayList<>();
+		// parameters
+		String parameters = "k=" + k + ";isSigmoid=" + isSigmoid + ";isFriend=" + isFriend
+				+ ";lambda_u=" + params.getLambda_u() + ";lambda_v=" + params.getLambda_v() + ";lambda_f="
+				+ params.getLambda_f();
+		result.add(parameters);
+
+		// user
+		result.add("users:");
+		for (String uId : userMap.keySet()) {
 			StringBuffer sb = new StringBuffer();
-			boolean isB = true;
-			for (String neighbor : neighbors) {
-				if(isB) isB = false;
-				else sb.append(",");
-				sb.append(neighbor);
-			}
-			vString.add(sb.toString());
+			sb.append(uId + " ");
+			UserObject uo = userMap.get(uId);
+			sb.append(Arrays.toString(uo.getFactors()));
+			result.add(sb.toString());
 		}
-		Utils.writeFile(vString, prefix + "_venue");
+
+		// venue
+		result.add("venues:");
+		for (String vId : venueMap.keySet()) {
+			StringBuffer sb = new StringBuffer();
+			sb.append(vId + " ");
+			VenueObject vo = venueMap.get(vId);
+			sb.append(Arrays.toString(vo.getFactors()));
+			result.add(sb.toString());
+		}
 	}
 
 	/**
@@ -487,7 +502,8 @@ public class Model {
                 "data/cks.txt",
                 true,
                 5,
-                0.05);
+                0.05,
+				false);
 
 		String uId = "1"; String vId = "1";
 
