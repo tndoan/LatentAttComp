@@ -448,7 +448,7 @@ public class Model {
 		return Loglikelihood.calculateLLH(uId, vId, userMap, venueMap, areaMap, isSigmoid, k, params);
 	}
 
-	public void writeModel(String prefix) throws IOException {
+	public void writeModel(String filename) throws IOException {
 
 		ArrayList<String> result = new ArrayList<>();
 		// parameters
@@ -476,6 +476,8 @@ public class Model {
 			sb.append(Arrays.toString(vo.getFactors()));
 			result.add(sb.toString());
 		}
+
+		Utils.writeFile(result, filename);
 	}
 
 	/**
