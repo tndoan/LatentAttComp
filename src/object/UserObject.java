@@ -1,5 +1,6 @@
 package object;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
@@ -34,8 +35,7 @@ public class UserObject {
 	public void setFactors(double[] factors) {
 		this.factors = factors;
 	}
-	
-	
+
 	/**
 	 * id of user
 	 */
@@ -57,11 +57,19 @@ public class UserObject {
 	public String getId() {
 		return id;
 	}
-	
-	public UserObject(String id, HashMap<String, Integer> checkinMap, int k){
+
+	/**
+	 *
+	 * @param id			id of user
+	 * @param checkinMap	check-in map of user
+	 * @param lOfFriends	friend of user
+	 * @param k				# of latent features
+	 */
+	public UserObject(String id, HashMap<String, Integer> checkinMap, ArrayList<String> lOfFriends, int k){
 		this.id = id;
 		this.checkinMap = checkinMap;
 		this.factors = new double[k];
+		this.listOfFriends = lOfFriends;
 		
 		Random generator = new Random();
 		for (int i = 0; i < k; i++)

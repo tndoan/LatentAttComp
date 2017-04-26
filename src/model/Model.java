@@ -18,42 +18,41 @@ public class Model {
 	 * if true, it is modeled as sigmoid function
 	 * else, use CDF function
 	 */
-	private boolean isSigmoid;
+	protected boolean isSigmoid;
 	
 	/**
 	 * key is venue id, value is venue object corresponding to the venue id
 	 */
-	private HashMap<String, VenueObject> venueMap;
+	protected HashMap<String, VenueObject> venueMap;
 
 	/**
 	 *
 	 */
-	private boolean isFriend;
-	
-	
+	protected boolean isFriend;
+
 	/**
 	 * key is user id, value is user object corresponding to user id
 	 */
-	private HashMap<String, UserObject> userMap;
+	protected HashMap<String, UserObject> userMap;
 
 	/**
 	 * store regularizer values
 	 */
-	private Parameters params;
+	protected Parameters params;
 	
-	private int k;
+	protected int k;
 	
 	/**
 	 * key is the area id(same as venue id), value is area object 
 	 */
-	private HashMap<String, AreaObject> areaMap;
+	protected HashMap<String, AreaObject> areaMap;
 
-	public Model(String uFile, String venueLocFile, String cksFile, boolean isSigmoid, int k, double scale, boolean isFriend) {
-		this(uFile, venueLocFile, cksFile, isSigmoid, k, scale, isFriend,
+	public Model(String uFile, String venueLocFile, String cksFile, String fFile, boolean isSigmoid, int k, double scale, boolean isFriend) {
+		this(uFile, venueLocFile, cksFile, fFile, isSigmoid, k, scale, isFriend,
 				new Parameters(0.01, 0.01, 0.01));
 	}
 
-	public Model(String uFile, String venueLocFile, String cksFile, boolean isSigmoid, int k, double scale,
+	public Model(String uFile, String venueLocFile, String cksFile, String fFile, boolean isSigmoid, int k, double scale,
 				 boolean isFriend, Parameters params) {
 		this.isFriend = isFriend;
 		this.params = params;
@@ -63,13 +62,15 @@ public class Model {
 		// initialize 
 		venueMap = new HashMap<>();
 		userMap = new HashMap<>();
-		
 
 		//read data from files
 		HashMap<String, String> vInfo = ReadFile.readLocation(venueLocFile);
 		HashMap<String, HashMap<String, Integer>> cksMap = ReadFile.readNumCksFile(cksFile);
 
 		HashMap<String, ArrayList<String>> userOfVenueMap = Utils.collectUsers(cksMap);
+		HashMap<String, ArrayList<String>> friendInfoMap = null;
+		if (isFriend)
+			friendInfoMap = ReadFile.readFriendship(fFile);
 
 		// make venue object
 		HashMap<String, PointObject> vLocInfo = new HashMap<>();
@@ -87,7 +88,10 @@ public class Model {
 		Set<String> uSet = cksMap.keySet();
 		for (String uId : uSet) {
 			HashMap<String, Integer> checkinMap = cksMap.get(uId);
-			UserObject u = new UserObject(uId, checkinMap, k);
+			ArrayList<String> lOfFriends = null;
+			if (isFriend)
+				lOfFriends = friendInfoMap.get(uId);
+			UserObject u = new UserObject(uId, checkinMap, lOfFriends, k);
 			userMap.put(uId, u);
 		}
 
@@ -502,6 +506,7 @@ public class Model {
         Model m = new Model("data/uLoc.txt",
                 "data/vLoc.txt",
                 "data/cks.txt",
+				null,
                 true,
                 5,
                 0.05,

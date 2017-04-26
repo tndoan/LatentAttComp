@@ -110,5 +110,15 @@ public class ReadFile {
 		} 
 		return result;
 	}
-	
+
+	/**
+	 * each line has the format
+	 * <userId> <userId_1> <userId_2> <userId_3> ...
+	 * <userId_1> <userId_2> <userId_3> ... are friends of <userId>
+	 * @param filename the name of file
+	 * @return
+	 */
+	public static HashMap<String, ArrayList<String>> readFriendship(String filename) {
+		return readNeighbors(filename); // they have the same format
+	}
 }
