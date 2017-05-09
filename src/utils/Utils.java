@@ -371,4 +371,18 @@ public class Utils {
 		
 		return new PointObject(lat/totalCks, lng/totalCks);
 	}
+
+	/**
+	 * parse the string of array to array. It is the reverse of Arrays.toString(double[])
+	 * @param string	string that has format like [1.0, 2.0, 5.0]
+	 * @return			array
+	 */
+	public static double[] fromString(String string) {
+		String[] strings = string.replace("[", "").replace("]", "").split(",");
+		double result[] = new double[strings.length];
+		for (int i = 0; i < result.length; i++) {
+			result[i] = Double.parseDouble(strings[i]);
+		}
+		return result;
+	}
 }
