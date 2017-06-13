@@ -1,6 +1,7 @@
 package model;
 
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.util.*;
 
 import object.AreaObject;
@@ -257,6 +258,19 @@ public class Model {
 		// regularization
 		grad = Function.plus(grad, Function.multiply(-2.0 * params.getLambda_u(), uFactor));
 
+		//friendship network
+		ArrayList<String> friends = uo.getListOfFriends();
+		if (isFriend && (friends != null)) {
+			double[] reg = new double[k];
+			for (String f : friends) {
+				UserObject fObj = userMap.get(f);
+				reg = Function.plus(reg, Function.minus(fObj.getFactors(), uFactor));
+			}
+			double numFriends = (double) friends.size();
+			reg = Function.multiply(params.getLambda_f() / numFriends, reg);
+			grad = Function.plus(grad, reg);
+		}
+
 		return grad;
 	}
 	
@@ -357,7 +371,7 @@ public class Model {
 	 * @return	calculate the log likelihood of model
 	 */
 	public double calculateLLH() {
-		return Loglikelihood.calculateLLH(userMap, venueMap, areaMap, isSigmoid, k, params);
+		return Loglikelihood.calculateLLH(userMap, venueMap, areaMap, isSigmoid, k, params, isFriend);
 	}
 
 	/**
@@ -365,7 +379,7 @@ public class Model {
 	 * @return	log likelihood
 	 */
 	public double calculateParallelLLH() {
-		return Loglikelihood.calculateParallelLLH(userMap, venueMap, areaMap, isSigmoid, k, params);
+		return Loglikelihood.calculateParallelLLH(userMap, venueMap, areaMap, isSigmoid, k, params, isFriend);
 	}
 
 	private double[] userGrad(String uId, String vId) {
@@ -403,7 +417,21 @@ public class Model {
 
 		double[] r = Function.multiply(-2.0 * params.getLambda_u(), uFactor);
 
-		return Function.plus(Function.multiply(u.retrieveNumCks(vId), result), r);
+		double[] finalResult = Function.plus(Function.multiply(u.retrieveNumCks(vId), result), r);
+
+		ArrayList<String> lOfFriends = u.getListOfFriends();
+		if (isFriend && (lOfFriends != null)) {
+			double[] reg = new double[k];
+			for (String f : lOfFriends) {
+				UserObject fObj = userMap.get(f);
+				reg = Function.plus(reg, Function.minus(fObj.getFactors(), uFactor));
+			}
+			double numFriends = (double) lOfFriends.size();
+			reg = Function.multiply(2.0 * params.getLambda_f() / numFriends, reg);
+			finalResult = Function.plus(finalResult, reg);
+		}
+
+		return finalResult;
 	}
 
 	private double[] venueGrad(String uId, String vId) {
@@ -449,7 +477,7 @@ public class Model {
 	}
 
 	public double calculateLLH(String uId, String vId) {
-		return Loglikelihood.calculateLLH(uId, vId, userMap, venueMap, areaMap, isSigmoid, k, params);
+		return Loglikelihood.calculateLLH(uId, vId, userMap, venueMap, areaMap, isSigmoid, k, params, isFriend);
 	}
 
 	public void writeModel(String filename) throws IOException {
@@ -527,6 +555,8 @@ public class Model {
 		double llh1 = m.calculateLLH(uId, vId);
 		o.setFactors(new double[]{1.0 - eps, 2.0, 3.0, 4.0, 5.0});
 		double llh2 = m.calculateLLH(uId, vId);
+		double diff = (llh1 - llh2) /(2.0 * eps);
 		System.out.println((llh1 - llh2) /(2.0 * eps));
+		System.out.println(grad[0] - diff);
 	}
 }

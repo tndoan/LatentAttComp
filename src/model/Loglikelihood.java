@@ -1,9 +1,11 @@
 package model;
 
+import java.lang.reflect.Array;
 import java.util.Collections;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
+import java.util.ArrayList;
 
 import object.AreaObject;
 import object.UserObject;
@@ -19,10 +21,12 @@ public class Loglikelihood {
 	 * @param areaMap		map of area id and the actual object
 	 * @param isSigmoid		sigmoid function or not
 	 * @param k				number of latent feature
+	 * @param params		values of regularizers
+	 * @param isFriend		if our model takes advantage of friendship network
 	 * @return				log likelihood of model
 	 */
 	public static double calculateLLH(HashMap<String, UserObject> userMap, HashMap<String, VenueObject> venueMap, 
-			HashMap<String, AreaObject> areaMap, boolean isSigmoid, int k, Parameters params){
+			HashMap<String, AreaObject> areaMap, boolean isSigmoid, int k, Parameters params, boolean isFriend){
 		double llh = 0.0;
 		
 		HashMap<String, double[]> areaFactorCache = new HashMap<>();
@@ -89,6 +93,26 @@ public class Loglikelihood {
 			llh -= params.getLambda_u() * Function.sqrNorm(uo.getFactors());
 		for (VenueObject vo : venueMap.values())
 			llh -= params.getLambda_v() * Function.sqrNorm(vo.getFactors());
+
+		// friendship regularization
+		if (isFriend) {
+			double reg = 0.0;
+			double numPairs = 0.0;
+			for (UserObject uo : userMap.values()) {
+				ArrayList<String> lOfFriends = uo.getListOfFriends();
+				if (lOfFriends == null)
+					continue;
+				double[] uFactor = uo.getFactors();
+				for (String f : lOfFriends) {
+					UserObject fObj = userMap.get(f);
+					double[] fFactor = fObj.getFactors();
+					double[] uMinusF = Function.minus(uFactor, fFactor);
+					reg += Function.sqrNorm(uMinusF);
+					numPairs += 1.0;
+				}
+			}
+			llh -= params.getLambda_f() * reg / numPairs;
+		}
 		
 		return llh;
 	}
@@ -100,10 +124,13 @@ public class Loglikelihood {
 	 * @param areaMap		map of area objects
 	 * @param isSigmoid		if we use sigmoid or tanh function for competition
 	 * @param k				# of latent features
+	 * @param params		value of regularization
+	 * @param isFriend		if our model uses friendship network or not
 	 * @return				log likelihood
 	 */
 	public static double calculateParallelLLH(HashMap<String, UserObject> userMap, HashMap<String, VenueObject> venueMap,
-									  HashMap<String, AreaObject> areaMap, boolean isSigmoid, int k, Parameters params){
+									  HashMap<String, AreaObject> areaMap, boolean isSigmoid, int k, Parameters params,
+											  boolean isFriend){
 		Map<String, double[]> areaFactorCache = Collections.synchronizedMap(new HashMap<>());
 
 		// user chooses area
@@ -176,6 +203,28 @@ public class Loglikelihood {
 				.mapToDouble(vo -> params.getLambda_v() * Function.sqrNorm(vo.getFactors()))
 				.sum();
 
+		// friendship network
+		if (isFriend) {
+			double reg = userMap.values().parallelStream().mapToDouble(uo -> {
+				ArrayList<String> lOfFriends = uo.getListOfFriends();
+				if (lOfFriends == null)
+					return 0.0;
+				double[] uFactor = uo.getFactors();
+				return lOfFriends.parallelStream().mapToDouble(f -> {
+					UserObject fObj = userMap.get(f);
+					double[] fFactor = fObj.getFactors();
+					return Function.sqrNorm(Function.minus(uFactor, fFactor));
+				}).sum();
+			}).sum();
+			double count = userMap.values().parallelStream().mapToDouble(uo -> {
+				ArrayList<String> lOfFriends = uo.getListOfFriends();
+				if (lOfFriends == null)
+					return 0.0;
+				return (double) lOfFriends.size();
+			}).sum();
+			llh -= params.getLambda_f() * reg / count;
+		}
+
 		return llh;
 	}
 
@@ -188,11 +237,13 @@ public class Loglikelihood {
 	 * @param areaMap		map of area id, area object
 	 * @param isSigmoid		sigmoid or tanh
 	 * @param k				number of latent features
+	 * @param params		all parameter of regularization
+	 * @param isFriend		if our model uses friendship network
 	 * @return				log likelihood of uId and vId
 	 */
 	public static double calculateLLH(String uId, String vId, HashMap<String, UserObject> userMap,
 									  HashMap<String, VenueObject> venueMap, HashMap<String, AreaObject> areaMap,
-									  boolean isSigmoid, int k, Parameters params) {
+									  boolean isSigmoid, int k, Parameters params, boolean isFriend) {
 
 		UserObject uo = userMap.get(uId);
 		VenueObject vo = venueMap.get(vId);
@@ -223,6 +274,24 @@ public class Loglikelihood {
 
 		// calculate regularization
 		double r = params.getLambda_u() * Function.sqrNorm(uFactor) + params.getLambda_v() * Function.sqrNorm(vFactor);
-		return result * numCks - r; // minus since we want to minimize r
+		result = result * numCks - r; // minus since we want to minimize r
+
+		// friendship network
+		if (isFriend) {
+			ArrayList<String> lOfFriends = uo.getListOfFriends();
+			if (lOfFriends != null) {
+				double reg = 0.0; double count = 0.0;
+				for (String f : lOfFriends) {
+					UserObject fObj = userMap.get(f);
+					double[] fFactor = fObj.getFactors();
+					double[] uMinusF = Function.minus(uFactor, fFactor);
+					reg += Function.sqrNorm(uMinusF);
+					count += 1.0;
+				}
+				result -= params.getLambda_f() * reg / count;
+			}
+		}
+
+		return result;
 	}
 }

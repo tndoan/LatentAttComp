@@ -60,7 +60,7 @@ public class Prediction extends Model{
             if (userMap.get(userId) == null) // if not in training set, ignore
                 return;
 
-            System.out.println("user id:" + userId);
+//            System.out.println("user id:" + userId);
             // prediction
             List<PairObject> list = Collections.synchronizedList(new ArrayList<>(20000));
 
@@ -73,7 +73,7 @@ public class Prediction extends Model{
                 list.add(new PairObject(venueId, pred));
             }
 //            });
-            System.out.println("1st part:" + ((System.currentTimeMillis() - sTime)/1000) + " s");
+//            System.out.println("1st part:" + ((System.currentTimeMillis() - sTime)/1000) + " s");
 
             HashMap<String, Double> gtOfUser = gt.get(userId);
             if (gtOfUser == null)
@@ -95,8 +95,9 @@ public class Prediction extends Model{
                     result[i] += (double) intersection.size() / (double) groundTruth.size();
                 }
             }
-            System.out.println("Finish user :" + userId + ":" + ((System.currentTimeMillis() - sTime)/1000) + " s");
-            System.out.println(c + "/" + total);
+//            System.out.println("Finish user :" + userId + ":" + ((System.currentTimeMillis() - sTime)/1000) + " s");
+            if (c % 1000 == 0) // limit the output. I don't want to flush all
+                System.out.println(c + "/" + total);
         }
 //        });
 
