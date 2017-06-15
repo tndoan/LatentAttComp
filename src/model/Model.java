@@ -13,14 +13,7 @@ import utils.ReadFile;
 import utils.Utils;
 
 public class Model {
-	
-	/**
-	 * this is used to indicate the function of winning of venue over its neighbors
-	 * if true, it is modeled as sigmoid function
-	 * else, use CDF function
-	 */
-	protected boolean isSigmoid;
-	
+
 	/**
 	 * key is venue id, value is venue object corresponding to the venue id
 	 */
@@ -42,23 +35,31 @@ public class Model {
 	protected Parameters params;
 	
 	protected int k;
+
+	/**
+	 * steepness of the curve of Logistic function
+	 * steepness = 1 the function is Sigmoid
+	 * steepness = 2 the function is (1 + tanh)/2
+	 */
+	protected double steepness; // steepness of the curve
 	
 	/**
 	 * key is the area id(same as venue id), value is area object 
 	 */
 	protected HashMap<String, AreaObject> areaMap;
 
-	public Model(String uFile, String venueLocFile, String cksFile, String fFile, boolean isSigmoid, int k, double scale, boolean isFriend) {
-		this(uFile, venueLocFile, cksFile, fFile, isSigmoid, k, scale, isFriend,
-				new Parameters(0.01, 0.01, 0.01));
+	public Model(String uFile, String venueLocFile, String cksFile, String fFile, int k, double scale,
+				 boolean isFriend, double steepness) {
+		this(uFile, venueLocFile, cksFile, fFile, k, scale, isFriend,
+				steepness, new Parameters(0.01, 0.01, 0.01));
 	}
 
-	public Model(String uFile, String venueLocFile, String cksFile, String fFile, boolean isSigmoid, int k, double scale,
-				 boolean isFriend, Parameters params) {
+	public Model(String uFile, String venueLocFile, String cksFile, String fFile, int k, double scale,
+				 boolean isFriend, double steepness, Parameters params) {
 		this.isFriend = isFriend;
 		this.params = params;
-		this.isSigmoid = isSigmoid;
 		this.k = k;
+		this.steepness = steepness;
 		
 		// initialize 
 		venueMap = new HashMap<>();
@@ -112,6 +113,7 @@ public class Model {
 		long sTime = System.currentTimeMillis();
 		double prevLLH = calculateParallelLLH();
 		double learningRate = -0.000001;
+		int counter = 0;
 
 		System.out.println(prevLLH + " in " + (System.currentTimeMillis() - sTime)/1000 + " s");
 		while(!conv) {
@@ -151,10 +153,12 @@ public class Model {
 
 			double llh = calculateParallelLLH();
 			System.out.println(llh + " in " + (System.currentTimeMillis() - sTime)/1000 + " s");
-			if (Math.abs((llh - prevLLH) / prevLLH) < 0.01)
+			if (Math.abs((llh - prevLLH) / prevLLH) < 0.01 || counter == 10)
 				conv = true;
-			else
+			else {
 				prevLLH = llh;
+				counter++;
+			}
 		}
 	}
 
@@ -168,6 +172,7 @@ public class Model {
 		long sTime = System.currentTimeMillis();
 		double prevLLH = calculateParallelLLH();
 		double learningRate = -0.000001;
+		int counter = 0;
 
 		System.out.println(prevLLH + " in " + (System.currentTimeMillis() - sTime)/1000 + " s");
 		while(!conv) {
@@ -187,10 +192,12 @@ public class Model {
 
 			double llh = calculateParallelLLH();
 			System.out.println(llh + " in " + (System.currentTimeMillis() - sTime)/1000 + " s");
-			if (Math.abs((llh - prevLLH) / prevLLH) < 0.01)
+			if (Math.abs((llh - prevLLH) / prevLLH) < 0.01 || counter == 5)
 				conv = true;
-			else
+			else {
 				prevLLH = llh;
+				counter++;
+			}
 		}
 	}
 	
@@ -234,21 +241,10 @@ public class Model {
 				VenueObject neighborObj = venueMap.get(nId);
 				double rhs = Function.innerProduct(uFactor, neighborObj.getFactors());
 				double diff = lhs - rhs;
-				double p;
-				double[] subVector;
-				
-				if (isSigmoid) {
-					p = - Function.sigmoidFunction(diff) * Math.exp(- diff);
-					subVector = Function.minus(neighborObj.getFactors(), vo.getFactors());
-					subVector = Function.multiply(p, subVector);
-				} else {
-					p = 1.0/ Function.tanh1_2(diff);
-					double d = 1.0 + Math.exp(-2.0 * diff);
-					p *= 2.0 * Math.exp(-2.0 * diff) / (d * d);
-					subVector = Function.minus(vo.getFactors(), neighborObj.getFactors());
-					subVector = Function.multiply(p, subVector);
-				}
-				
+				double p = - steepness * Math.exp(-steepness * diff ) / (1.0 + Math.exp(-2.0 * diff));
+				double[] subVector = Function.minus(neighborObj.getFactors(), vo.getFactors());
+				subVector = Function.multiply(p, subVector);
+
 				sub = Function.plus(sub, subVector);
 			}
 			sub = Function.multiply(uo.retrieveNumCks(vId), sub);
@@ -319,15 +315,9 @@ public class Model {
 				VenueObject nObj = venueMap.get(nId);
 				double rhs = Function.innerProduct(uFactor, nObj.getFactors());
 				double diff = lhs - rhs;
-				double p;
-				
-				if (isSigmoid)
-					p = Math.exp(-diff) * Function.sigmoidFunction(diff);
-				else {
-					double e = Math.exp(-2.0 * diff);
-					p = 2.0 * e / (Function.tanh1_2(diff) * (e + 1.0) * (1.0 + e));
-				}
-				
+				double e = Math.exp(- steepness * diff);
+				double p = steepness * e / (1.0 + e);
+
 				sub = Function.plus(sub, Function.multiply(p, uFactor));
 			}
 			
@@ -346,15 +336,9 @@ public class Model {
 				double lhs = Function.innerProduct(uFactor, nObj.getFactors());
 				double rhs = Function.innerProduct(uFactor, vFactor);
 				double diff = lhs - rhs;
-				double p;
-				
-				if (isSigmoid)
-					p = - Function.sigmoidFunction(diff) * Math.exp(-diff);
-				else {
-					double e = Math.exp(-2.0 * diff);
-					p = - 2.0 * e / ((1.0 + e) * (1.0 + e) * Function.tanh1_2(diff));
-				}
-				
+				double e = Math.exp(- steepness * diff);
+				double p = - steepness * e / (1.0 + e);
+
 				double[] sub = Function.multiply(p * uo.retrieveNumCks(nId), uFactor);
 				grad = Function.plus(sub, grad);
 			}
@@ -371,7 +355,7 @@ public class Model {
 	 * @return	calculate the log likelihood of model
 	 */
 	public double calculateLLH() {
-		return Loglikelihood.calculateLLH(userMap, venueMap, areaMap, isSigmoid, k, params, isFriend);
+		return Loglikelihood.calculateLLH(userMap, venueMap, areaMap, steepness, k, params, isFriend);
 	}
 
 	/**
@@ -379,7 +363,7 @@ public class Model {
 	 * @return	log likelihood
 	 */
 	public double calculateParallelLLH() {
-		return Loglikelihood.calculateParallelLLH(userMap, venueMap, areaMap, isSigmoid, k, params, isFriend);
+		return Loglikelihood.calculateParallelLLH(userMap, venueMap, areaMap, steepness, k, params, isFriend);
 	}
 
 	private double[] userGrad(String uId, String vId) {
@@ -405,11 +389,7 @@ public class Model {
 			double rhs = Function.innerProduct(nObj.getFactors(), uFactor);
 			double diff = lhs - rhs;
 			double[] diffVector = Function.minus(nObj.getFactors(), vFactor);
-			double inFront;
-			if (isSigmoid)
-				inFront = -Function.sigmoidFunction(diff) * Math.exp(-diff);
-			else
-				inFront = - 2.0 * Math.exp(-2.0 * diff) / (1.0 + Math.exp(-2.0 * diff));
+			double inFront = - steepness * Math.exp(-steepness * diff) / (1.0 + Math.exp(-2.0 * diff));
 
 			l2 = Function.plus(l2, Function.multiply(inFront, diffVector));
 		}
@@ -422,13 +402,18 @@ public class Model {
 		ArrayList<String> lOfFriends = u.getListOfFriends();
 		if (isFriend && (lOfFriends != null)) {
 			double[] reg = new double[k];
+			double numFriends = 0.0;
 			for (String f : lOfFriends) {
 				UserObject fObj = userMap.get(f);
+				if (fObj == null)
+					continue;
+				numFriends += 1.0;
 				reg = Function.plus(reg, Function.minus(fObj.getFactors(), uFactor));
 			}
-			double numFriends = (double) lOfFriends.size();
-			reg = Function.multiply(2.0 * params.getLambda_f() / numFriends, reg);
-			finalResult = Function.plus(finalResult, reg);
+			if (numFriends > 0.0) {
+				reg = Function.multiply(2.0 * params.getLambda_f() / numFriends, reg);
+				finalResult = Function.plus(finalResult, reg);
+			}
 		}
 
 		return finalResult;
@@ -457,16 +442,8 @@ public class Model {
 			VenueObject nObj = venueMap.get(nId);
 			double rhs = Function.innerProduct(uFactor, nObj.getFactors());
 			double diff = lhs - rhs;
-
-			if (isSigmoid) {
-				double eDiff = Math.exp(-diff);
-				double multiplier = eDiff / (1.0 + eDiff);
-				total += multiplier;
-			} else {
-				double e2Diff = Math.exp(-2.0 * diff);
-				double multiplier = 2.0 * e2Diff / (1.0 + e2Diff);
-				total += multiplier;
-			}
+			double multiplier = steepness * Math.exp(-steepness * diff) / (1.0 + Math.exp(-steepness * diff));
+			total += multiplier;
 		}
 		result = Function.plus(result, Function.multiply(total, uFactor));
 
@@ -477,14 +454,14 @@ public class Model {
 	}
 
 	public double calculateLLH(String uId, String vId) {
-		return Loglikelihood.calculateLLH(uId, vId, userMap, venueMap, areaMap, isSigmoid, k, params, isFriend);
+		return Loglikelihood.calculateLLH(uId, vId, userMap, venueMap, areaMap, steepness, k, params, isFriend);
 	}
 
 	public void writeModel(String filename) throws IOException {
 
 		ArrayList<String> result = new ArrayList<>();
 		// parameters
-		String parameters = "k=" + k + ";isSigmoid=" + isSigmoid + ";isFriend=" + isFriend
+		String parameters = "k=" + k + ";steepness=" + steepness + ";isFriend=" + isFriend
 				+ ";lambda_u=" + params.getLambda_u() + ";lambda_v=" + params.getLambda_v() + ";lambda_f="
 				+ params.getLambda_f();
 		result.add(parameters);
@@ -531,16 +508,15 @@ public class Model {
 	}
 
 	public static void main(String[] args){
-        Model m = new Model("data/uLoc.txt",
-                "data/vLoc.txt",
-                "data/cks.txt",
-				null,
-                true,
-                5,
-                0.05,
-				false);
+		Model m = new Model("../HomePredictModel/8020/JK/user_profile_8020",
+				"../HomePredictModel/8020/JK/venue_profile_8020",
+				"../HomePredictModel/8020/JK/cks_8020",
+				"../SupportVsCompetition/h_jk_friends.txt",
+				5,
+				0.01,
+				true, 2.0);
 
-		String uId = "1"; String vId = "1";
+		String uId = "11824884"; String vId = "4be2b815b02ec9b6f8774dc0";
 
 //		UserObject o = m.getUO(uId);
 		VenueObject o = m.getVO(vId);

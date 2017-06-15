@@ -112,4 +112,17 @@ public class Function {
 	public static double tanh1_2(double x) {
 		return 1.0 / (1.0 + Math.exp(-2.0 * x));
 	}
+
+	/**
+	 * return the logistic function whose midpoint = 0
+	 * it is the general case of Sigmoid and tanh
+	 * steepness = 1  => Sigmoid
+	 * steepness = 2  => (1 + tanh)/2
+	 * @param a	steepness of logistic function
+	 * @param x	variable
+	 * @return	logistic function
+	 */
+	public static double logisticFunc(double a, double x) {
+		return 1.0 / (1.0 + Math.exp(-a * x));
+	}
 }

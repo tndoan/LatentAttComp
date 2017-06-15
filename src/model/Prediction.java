@@ -19,10 +19,10 @@ public class Prediction extends Model{
 
     private HashMap<String, HashMap<String, Double>> gt;
 
-    public Prediction(String uFile, String venueLocFile, String cksFile, boolean isSigmoid, int k, double scale,
+    public Prediction(String uFile, String venueLocFile, String cksFile, double steepness, int k, double scale,
                       boolean isFriend, String friendshipFile, String resultFile, String groundTruthFile)
             throws IOException {
-        super(uFile, venueLocFile, cksFile, friendshipFile, isSigmoid, k, scale, isFriend);
+        super(uFile, venueLocFile, cksFile, friendshipFile, k, scale, isFriend, steepness);
         System.out.println("Finish loading");
         long sTime = System.currentTimeMillis();
         readResultFile(resultFile);
@@ -133,10 +133,7 @@ public class Prediction extends Model{
             double[] nFactor = venueMap.get(nId).getFactors();
             double rhs = Function.innerProduct(uFactor, nFactor);
             double diff = lhs - rhs;
-            if (isSigmoid)
-                diff = Math.log(Function.sigmoidFunction(diff));
-            else
-                diff = Math.log(Function.tanh1_2(diff));
+            diff = Math.log(Function.logisticFunc(steepness, diff));
 
 //            result += diff;
             return diff;
@@ -219,8 +216,21 @@ public class Prediction extends Model{
 
         //parse isSigmoid
         String[] isSInfo = comp[1].split("=");
-        boolean isS_value = Boolean.parseBoolean(isSInfo[1]);
-        assert (isS_value == isSigmoid);
+//        boolean isS_value = Boolean.parseBoolean(isSInfo[1]);
+        double steepness_value;
+        try {
+            steepness_value = Double.parseDouble(isSInfo[1]);
+        } catch (NumberFormatException ex) {
+            // this one will handle the case that comp[1] is something like isSigmoid={true|false}.
+            // This is the old format
+            boolean isS_value = Boolean.parseBoolean(isSInfo[1]);
+            if (isS_value)
+                steepness_value = 1.0; // Sigmoid
+            else
+                steepness_value = 2.0; // tanh
+        }
+        assert (steepness == steepness_value);
+//        assert (isS_value == isSigmoid);
 
         // parse isFriend
         String[] isFInfo = comp[2].split("=");

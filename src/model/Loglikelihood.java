@@ -19,14 +19,14 @@ public class Loglikelihood {
 	 * @param userMap		map of user id and the actual object
 	 * @param venueMap		map of venue id and the actual object
 	 * @param areaMap		map of area id and the actual object
-	 * @param isSigmoid		sigmoid function or not
+	 * @param steepness		steepness of logistic function
 	 * @param k				number of latent feature
 	 * @param params		values of regularizers
 	 * @param isFriend		if our model takes advantage of friendship network
 	 * @return				log likelihood of model
 	 */
 	public static double calculateLLH(HashMap<String, UserObject> userMap, HashMap<String, VenueObject> venueMap, 
-			HashMap<String, AreaObject> areaMap, boolean isSigmoid, int k, Parameters params, boolean isFriend){
+			HashMap<String, AreaObject> areaMap, double steepness, int k, Parameters params, boolean isFriend){
 		double llh = 0.0;
 		
 		HashMap<String, double[]> areaFactorCache = new HashMap<>();
@@ -77,10 +77,7 @@ public class Loglikelihood {
 					double rhs = Function.innerProduct(uFactor, no.getFactors());
 
 					double diff = lhs - rhs;
-					if (isSigmoid)
-						diff = Math.log(Function.sigmoidFunction(diff));
-					else
-						diff = Math.log(Function.tanh1_2(diff));
+					diff = Math.log(Function.logisticFunc(steepness, diff));
 					subLLH += diff;
 				}
 				
@@ -122,14 +119,14 @@ public class Loglikelihood {
 	 * @param userMap		map of user objects
 	 * @param venueMap		map of venue objects
 	 * @param areaMap		map of area objects
-	 * @param isSigmoid		if we use sigmoid or tanh function for competition
+	 * @param steepness		steepness of logistic function
 	 * @param k				# of latent features
 	 * @param params		value of regularization
 	 * @param isFriend		if our model uses friendship network or not
 	 * @return				log likelihood
 	 */
 	public static double calculateParallelLLH(HashMap<String, UserObject> userMap, HashMap<String, VenueObject> venueMap,
-									  HashMap<String, AreaObject> areaMap, boolean isSigmoid, int k, Parameters params,
+									  HashMap<String, AreaObject> areaMap, double steepness, int k, Parameters params,
 											  boolean isFriend){
 		Map<String, double[]> areaFactorCache = Collections.synchronizedMap(new HashMap<>());
 
@@ -182,10 +179,7 @@ public class Loglikelihood {
 					double rhs = Function.innerProduct(uFactor, no.getFactors());
 
 					double diff = lhs - rhs;
-					if (isSigmoid)
-						diff = Math.log(Function.sigmoidFunction(diff));
-					else
-						diff = Math.log(Function.tanh1_2(diff));
+					diff = Math.log(Function.logisticFunc(steepness, diff));
 					return diff;
 				}).sum();
 
@@ -212,6 +206,8 @@ public class Loglikelihood {
 				double[] uFactor = uo.getFactors();
 				return lOfFriends.parallelStream().mapToDouble(f -> {
 					UserObject fObj = userMap.get(f);
+					if (fObj == null)
+						return 0.0;
 					double[] fFactor = fObj.getFactors();
 					return Function.sqrNorm(Function.minus(uFactor, fFactor));
 				}).sum();
@@ -220,9 +216,16 @@ public class Loglikelihood {
 				ArrayList<String> lOfFriends = uo.getListOfFriends();
 				if (lOfFriends == null)
 					return 0.0;
-				return (double) lOfFriends.size();
+				double counter = 0.0;
+				for (String f : lOfFriends) {
+					if (userMap.get(f) != null)
+						counter += 1.0;
+				}
+				return counter;
 			}).sum();
-			llh -= params.getLambda_f() * reg / count;
+
+			if (count > 0.0)
+				llh -= params.getLambda_f() * reg / count;
 		}
 
 		return llh;
@@ -235,7 +238,7 @@ public class Loglikelihood {
 	 * @param userMap		map of user-id, user-object
 	 * @param venueMap		map of venue id, venue object
 	 * @param areaMap		map of area id, area object
-	 * @param isSigmoid		sigmoid or tanh
+	 * @param steepness		steepness of logistic function
 	 * @param k				number of latent features
 	 * @param params		all parameter of regularization
 	 * @param isFriend		if our model uses friendship network
@@ -243,7 +246,7 @@ public class Loglikelihood {
 	 */
 	public static double calculateLLH(String uId, String vId, HashMap<String, UserObject> userMap,
 									  HashMap<String, VenueObject> venueMap, HashMap<String, AreaObject> areaMap,
-									  boolean isSigmoid, int k, Parameters params, boolean isFriend) {
+									  double steepness, int k, Parameters params, boolean isFriend) {
 
 		UserObject uo = userMap.get(uId);
 		VenueObject vo = venueMap.get(vId);
@@ -264,10 +267,7 @@ public class Loglikelihood {
 		for (String n : allNeighborIds) {
 			double[] nFactors = venueMap.get(n).getFactors();
 			double rhs = Function.innerProduct(uFactor, nFactors);
-			if (isSigmoid)
-				result += Math.log(Function.sigmoidFunction(lhs - rhs));
-			else
-				result += Math.log(Function.tanh1_2(lhs - rhs));
+			result += Math.log(Function.logisticFunc(steepness, lhs - rhs));
 		}
 
 		double numCks = uo.retrieveNumCks(vId);
